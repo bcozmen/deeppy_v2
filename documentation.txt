@@ -1,0 +1,4 @@
+Unfortunately there isn't a very extensive documentation right now for the core modules. But the code should be commented well enough.
+
+There are some documentations/tutorials of a older version of the core module here:
+github.com/bcozmen/deeppy
