@@ -1,10 +1,14 @@
 import torch
+import networkx as nx
+import matplotlib.pyplot as plt
 from ..env_config import env_config
  
 class Xai:
 	def __init__(self):
 		self.registered_models = []
 		self.writer = None
+		self.optimizer_log_freq = env_config.xai_optimizer_log_freq
+		self.optimizer_step_counter = 1
 	
 	def _init_writer(self):
 		"""
@@ -66,6 +70,10 @@ class Xai:
 			optimizer: The optimizer instance to log
 		"""
 		# Calculate gradient norm
+		if self.optimizer_step_counter % self.optimizer_log_freq != 0:
+			self.optimizer_step_counter += 1
+			return
+		self.optimizer_step_counter = 1
 		metrics = {}
 		
 
@@ -85,10 +93,15 @@ class Xai:
 					metrics.setdefault(key, []).append(state[key].detach().cpu().norm(2).item())
 
 		for key in metrics.keys():
+			#print(f"[Xai] Optimizer Metric - {key}: {metrics[key]}")
 			if isinstance(metrics[key], list):
 				data = torch.tensor(metrics[key])
-			if len(data) > 0:
+			#print(f"[Xai] Logging optimizer metric: {key} : data : {data}")
+			if len(data) > 0 and not torch.isnan(data).all():
+				#print(f"[Xai] Logging optimizer metric: {key} : data : {data}")
 				self.writer.add_histogram(f"Optimizer/{key}", data, optimizer._optimizer_steps_counter)
+
+		self.writer.add_scalar("Optimizer/LR", optimizer.optimizer.param_groups[0]['lr'], optimizer._optimizer_steps_counter)
 
 	def log_model(self, model):
 		"""
@@ -130,4 +143,3 @@ class Xai:
 		# Placeholder for detailed logging logic
 		pass
 
-		

@@ -18,6 +18,8 @@ class DeeppyEnvConfig:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.log_dir = "logs"
         self.checkpoint_dir = "checkpoints"
+        self.torch_compile_args = {}  # Arguments for torch.compile
+        self.xai_optimizer_log_freq = 100  # Frequency of logging optimizer stats
         
         self.gpu_prefetch = 1  # Number of prefetch streams
         self._xai = None  # Lazy initialization to avoid circular imports

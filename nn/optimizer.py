@@ -171,6 +171,8 @@ class Optimizer():
 			bool: True if optimizer step was taken, False if still accumulating
 		"""
 		# Scale loss by accumulation steps to maintain effective batch size
+		
+
 		loss = loss / self.gradient_accumulation_steps
 		# Perform backward pass with gradient scaling for AMP
 		self.scaler.scale(loss).backward()
@@ -183,22 +185,20 @@ class Optimizer():
 		# Unscale gradients before clipping (required for AMP)
 		self.scaler.unscale_(self.optimizer) 
 		
-		# Log optimizer statistics before applying updates
-		self.xai.notify(self)
+		
 
 		# Apply gradient clipping if configured
 		if self.clipper is not None:
 			self.clipper(self.model_parameters)
-			
+		self.xai.notify(self)
 		# Perform optimizer step with gradient scaling
 		self.scaler.step(self.optimizer)
 		self.scaler.update()  # Update the scale factor for next iteration
-		self.optimizer.zero_grad(set_to_none=True)  # Clear gradients efficiently
 
 		# Step the learning rate scheduler if auto-stepping is enabled
 		if self.scheduler is not None and self.scheduler.auto_step:
 			self.scheduler.step()
-		
+		self.optimizer.zero_grad(set_to_none=True)  # Clear gradients efficiently
 		self._optimizer_steps_counter += 1
 		return True  # Optimizer step was taken
 

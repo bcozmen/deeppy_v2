@@ -5,6 +5,8 @@ import os
 import time 
 from .env_config import env_config
 from datetime import timedelta
+import torch
+
 
         
 class LearnFrame():
@@ -39,6 +41,7 @@ class LearnFrame():
         for i in range(self.model.optimizer._optimizer_steps_counter, steps):
 
             self.optimize()
+            torch.cuda.empty_cache()
 
             if (i+1)%test_freq == 0:
                 self.test(steps=test_steps)
@@ -91,6 +94,7 @@ class LearnFrame():
             while test_return == False:
                 X = self.data.test_data()
                 test_return = self.model.test(X)
+                torch.cuda.empty_cache()
                 
     def save(self, file_name, save_data = True):
         self.data.save(file_name)

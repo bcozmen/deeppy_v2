@@ -7,7 +7,7 @@ class GraphNeRFDataset(Dataset):
     def __init__(self, data_path):
         self.data_path = data_path
         self.all_classes, self.all_objects = self._gather_all_classes()
-        self.nerf_types = ["mlp" , "hash", "triplane"]
+        self.nerf_types = ["mlp", "hash" ,"triplane"]
 
 
     def __len__(self):
@@ -17,35 +17,63 @@ class GraphNeRFDataset(Dataset):
         obj = self.all_objects[idx]
         class_name, obj_type = obj.split("/")
 
-        label = torch.tensor([self.all_classes.index(class_name), idx, 0], dtype=torch.long)
+        
         
         item = []
         for ntype in self.nerf_types:
             V, E = self._load_object(obj, ntype=ntype)
             item.extend([V, E])
-        item.append(label)
 
+        labels = []
+        for ntype in self.nerf_types:
+            histograms = self._load_labels(obj, ntype=ntype)
+            labels.append(histograms)
+        item.append(torch.stack(labels, dim=0)[:,0:3])  # (num_nerf_types, 6, 10)
+
+        #label = torch.tensor([self.all_classes.index(class_name), idx, 0], dtype=torch.long)
+        #item.append(label)
         return item
 
     def _load_object(self,obj_name, ntype = "mlp"):
         weights = torch.load(f"{self.data_path}/{ntype}/{obj_name}/nerf_graph_weights.pth")
-        V = weights["v"]
-        E = weights["e"]
-        if ntype == "mlp":
-            V = V.unsqueeze(-1)
-        return V,E
 
+        v,e = weights["v"], weights["e"]
+        if ntype == "triplane":
+            n = 3*32*32
+            ne = 3*32*32*16
 
+            v = v[n:]
+            e = e[ne:]
+            
+            e[...,0] -= n
+            e[...,1] -= n
 
+        if ntype == "hash":
+            n = 4096 * 4
+            ne = 4096 * 4 * 2
+            
+            v = v[n:]
+            e = e[ne:]
+            
+            e[...,0] -= n
+            e[...,1] -= n
+        return v, e
+    
+    def _load_labels(self,obj_name, ntype = "mlp"):
+        histograms = torch.load(f"{self.data_path}/{ntype}/{obj_name}/histograms.pth") # (6,10)
+        return histograms["histograms"]
 
     def _gather_all_classes(self):
-        all_classes = glob.glob(f"{self.data_path}/*/*/*/nerf_weights.pth")
+        all_classes = glob.glob(f"{self.data_path}/*/*/*/nerf_graph_weights.pth")
         all_classes = list(set([obj.split("/")[-3] for obj in all_classes]))
         all_classes.sort()
         all_objects = []
+
+        pos_weights = torch.load(f"{self.data_path}/pos_weights.pth")
+        self.volume_indices = pos_weights['volume_indices']
         
         for obj in all_classes:
-            all_vars = [obj + "/" + k.split("/")[-2] for k in glob.glob(f"{self.data_path}/*/{obj}/*/nerf_weights.pth")]
+            all_vars = [obj + "/" + k.split("/")[-2] for k in glob.glob(f"{self.data_path}/*/{obj}/*/nerf_graph_weights.pth")]
             all_objects.extend(list(set(all_vars)))
         return all_classes, all_objects
 

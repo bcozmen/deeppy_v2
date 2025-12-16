@@ -70,6 +70,7 @@ class Logger():
 		logs = {}
 		for tag in self.logs.keys():
 			for key in self.logs[tag].keys():
+				#print("tag,key", tag, key)
 				logs.setdefault(tag, {})[key] = torch.stack(self.logs[tag][key]).mean(0)
 
 		self.reset()  # Clear logs after retrieval
@@ -302,9 +303,10 @@ class BaseModel(ABC, metaclass=CombinedMeta):
 			return False  # Still queuing batches
 			
 		X, stream = self.test_queue.pop(0)
-		with torch.cuda.stream(stream):
-			with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=self.amp):
-				loss = self.get_loss(X)
+		with torch.no_grad():
+			with torch.cuda.stream(stream):
+				with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=self.amp):
+					loss = self.get_loss(X)
 		self.streams.append(stream)  # Return stream to pool
 		
 		self.xai.notify(self)

@@ -2,6 +2,13 @@ import torch
 import torch.nn as nn
 from ..env_config import env_config
 
+class ResidualBlock(nn.Module):
+	def __init__(self, layer):
+		super(ResidualBlock, self).__init__()
+		self.layer = layer
+
+	def forward(self, x):
+		return self.layer(x) + x
 
 class Network(nn.Module):
 	"""
@@ -67,6 +74,7 @@ class Network(nn.Module):
 
 		# Store configuration
 		self.torch_compile = env_config.torch_compile
+		self.torch_compile_args = env_config.torch_compile_args
 		self.task = task
 		self.classify_threshold = classify_threshold
 		self.weight_init = weight_init
@@ -147,7 +155,7 @@ class Network(nn.Module):
 			nn.Module: Compiled or original model
 		"""
 		if self.torch_compile:
-			return torch.compile(model)
+			return torch.compile(model, **self.torch_compile_args)
 		return model
 
 	def _generate_model(self):
@@ -181,7 +189,7 @@ class Network(nn.Module):
 			self.model = self._compile(self.model)
 
 	def _generate_layers(self, layers=[None, None], blocks=[], block_args=[], 
-						out_act=nn.Identity, out_params={}, weight_init="uniform"):
+						out_act=nn.Identity, out_params={}, weight_init=None, residual=False):
 		"""
 		Generate multiple layers with different input and output sizes.
 		
@@ -221,9 +229,11 @@ class Network(nn.Module):
 				this_out_params = out_params
 			
 			# Generate the block with given input and output sizes
-			net.extend(self._generate_block(blocks, block_args, inp, out, 
-										  out_act=this_out_act, out_params=this_out_params))
-		
+			blk = self._generate_block(blocks, block_args, inp, out, 
+										  out_act=this_out_act, out_params=this_out_params)
+			if residual:
+				blk = [ResidualBlock(nn.Sequential(*blk))]
+			net.extend(blk)
 
 		return net
 
