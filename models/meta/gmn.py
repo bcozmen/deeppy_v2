@@ -140,8 +140,6 @@ class GMN(BaseModel):
         loss_by_nerf = loss.mean(dim = (0,2)) # Mean over batch and tasks
         self.logger.add("WS By Nerf Type", loss_by_nerf.unsqueeze(0).T)
 
-        loss_by_task = loss.mean(dim = (0,1)) # Mean over batch and nerf types
-        self.logger.add("WS By Task", loss_by_task.unsqueeze(0).T)
         total_loss = loss.mean()
         self.logger.add("Loss", torch.tensor([[total_loss.item()]]).T)
         self.logger.add("Pooling Entropy", entropies)
@@ -297,13 +295,12 @@ class GMN(BaseModel):
         self.wassersteinLoss = self.loss_functions[0]
 
     def _init_logger(self):
-        tags = ['Loss',  "Gates Entropy", "Pooling Entropy", "WS distance Percentiles", "WS By Nerf Type", "WS By Task" ]
+        tags = ['Loss',  "Gates Entropy", "Pooling Entropy", "WS distance Percentiles", "WS By Nerf Type"]
         keys = [['Loss'],
                 ["MLP", "Hash", "Triplane"],
                 ["MLP", "Hash", "Triplane"],
                 ['%25', '%50', '%75', '%90', '%99'],
-                ["MLP", "Hash", "Triplane"],
-                ["Red", "Green", "Blue"]]
+                ["MLP", "Hash", "Triplane"]]
         self.logger = self.create_logger(tags, keys)
     
     # =====================================================================

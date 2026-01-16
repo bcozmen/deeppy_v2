@@ -564,7 +564,7 @@ class BaseModel(ABC, metaclass=CombinedMeta):
 		#Helper function to load
 		params = dic["params"]
 		dicts = dic["nets"]
-		objs = dic["objs"]
+		#objs = dic["objs"]
 		for net,net_dicts in zip(self.nets, dicts):
 			net.load_states(net_dicts)
 

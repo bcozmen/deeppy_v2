@@ -4,10 +4,14 @@ import torch.nn as nn
 import glob
 
 class GraphNeRFDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, load_spatial=False, nerf_types = ["mlp", "hash" ,"triplane"], label_types= [0]):
         self.data_path = data_path
         self.all_classes, self.all_objects = self._gather_all_classes()
-        self.nerf_types = ["mlp", "hash" ,"triplane"]
+        self.nerf_types = nerf_types
+        self.load_spatial = load_spatial
+        if type(label_types) is int:
+            label_types = [label_types]
+        self.label_types = label_types
 
 
     def __len__(self):
@@ -28,17 +32,17 @@ class GraphNeRFDataset(Dataset):
         for ntype in self.nerf_types:
             histograms = self._load_labels(obj, ntype=ntype)
             labels.append(histograms)
-        item.append(torch.stack(labels, dim=0)[:,0:3])  # (num_nerf_types, 6, 10)
-
-        #label = torch.tensor([self.all_classes.index(class_name), idx, 0], dtype=torch.long)
-        #item.append(label)
+        
+        labels = torch.stack(labels, dim=0)[:, self.label_types]  # (num_nerf_types, 6, len(label_types))
+        item.append(labels)
+        
         return item
 
     def _load_object(self,obj_name, ntype = "mlp"):
         weights = torch.load(f"{self.data_path}/{ntype}/{obj_name}/nerf_graph_weights.pth")
 
         v,e = weights["v"], weights["e"]
-        if ntype == "triplane":
+        if not self.load_spatial and ntype == "triplane":
             n = 3*32*32
             ne = 3*32*32*16
 
@@ -48,7 +52,7 @@ class GraphNeRFDataset(Dataset):
             e[...,0] -= n
             e[...,1] -= n
 
-        if ntype == "hash":
+        if not self.load_spatial and ntype == "hash":
             n = 4096 * 4
             ne = 4096 * 4 * 2
             
